@@ -1,18 +1,18 @@
 {-
     The MIT License
-    
+
     Copyright (c) 2010 Korcan Hussein.
-    
+
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
     in the Software without restriction, including without limitation the rights
     to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
     copies of the Software, and to permit persons to whom the Software is
     furnished to do so, subject to the following conditions:
-    
+
     The above copyright notice and this permission notice shall be included in
     all copies or substantial portions of the Software.
-    
+
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -60,30 +60,9 @@ import Collision
 import Surface
 import GameState
 import GameEnv
-
-screenWidth, screenHeight, screenBpp:: Int
-screenWidth  = 640
-screenHeight = 480
-screenBpp    = 32
-
-halfHeight, halfWidth :: Int
-halfHeight = screenHeight `div` 2
-halfWidth  = screenWidth `div` 2
-
-paddleW, paddleH, ballW, ballH :: Int
-paddleW = 22
-paddleH = 96 
-ballW   = 8 
-ballH   = 8
-
-paddleVel :: Float
-paddleVel = 300
-
-secs :: Float
-secs = 1.0 / 1000.0
-
-textColor :: Color
-textColor = Color 0xFF 0xFF 0xFF
+import Consts
+import Sound
+import Draw
 
 -- SDL_GetKeyState is not defined in Graphic.UI.SDL
 foreign import ccall unsafe "SDL_GetKeyState" sdlGetKeyState :: Ptr CInt -> IO (Ptr Word8)
@@ -101,125 +80,40 @@ init = do
     setCaption "YACPong" []
     enableUnicode True
     font         <- openFont "data/Crysta.ttf" 36
-    wallBounce   <- loadWAV "data/wall.wav" 
-    paddleBounce <- loadWAV "data/paddle.wav" 
+    wallBounce   <- loadWAV "data/wall.wav"
+    paddleBounce <- loadWAV "data/paddle.wav"
     winSound     <- loadWAV "data/win.wav"
-    
+
     paddleSprite <- createRGBSurfaceEndian [HWSurface] paddleW paddleH screenBpp
     ballSprite   <- createRGBSurfaceEndian [HWSurface] ballW ballH screenBpp
-    
+
     paddleColor <- mapRGB' paddleSprite 0xFF 0xFF 0x00
     ballColor   <- mapRGB' ballSprite 0x3F 0xFF 0xF5
-    
+
     fillRect paddleSprite (Just $ Rect 0 0 paddleW paddleH) paddleColor
     fillRect ballSprite (Just $ Rect 0 0 ballW ballH) ballColor
-    
+
     paused <- renderTextSolid font "PAUSED" textColor
-    
+
     currTicks <- start timer
-    
+
     return (GameConfig font screen ballSprite paddleSprite paused wallBounce paddleBounce winSound, gameData pPos1 pPos2 bPos currTicks)
  where from (x,y) = (fromIntegral x, fromIntegral y)
        pPos1   = from (10, halfHeight - paddleH `div` 2)
        pPos2   = from (screenWidth - 10 - paddleW, halfHeight - paddleH `div` 2)
        bPos    = from (halfWidth, halfHeight)
 
-blitScreen :: (MonadIO m, MonadReader GameConfig m) => Int -> Int -> Surface -> Maybe Rect -> m ()
-blitScreen x y s r = do
-    screen <- askM screen
-    applySurface' x y s screen r
-{-# INLINE blitScreen #-}
-
-drawNet :: GameEnv ()
-drawNet = do
-    dst <- askM screen
-    liftIO $ drawLine dst (x,0) (screenHeight-1) 2 Vertical $ Pixel 0xFFFFFFFF
- where x = screenWidth `div` 2
-    
-
-drawPaddle :: Int -> GameEnv ()
-drawPaddle paddleIdx = do
-    ps      <- askM paddleSprite
-    (px,py) <- getM (pPos . paddlel)
-    blitScreen (truncate px) (truncate py) ps Nothing
- where paddlel = if paddleIdx == 0 then paddle1 else paddle2
-
-drawBall :: GameEnv ()
-drawBall = do
-    bs      <- askM ballSprite
-    (bx,by) <- getM (pos . ball)
-    blitScreen (truncate bx) (truncate by) bs Nothing
-
-drawScore :: GameEnv ()
-drawScore = do
-    f   <- askM font
-    p1c <- liftM show $ getM $ player1Count . stats
-    p2c <- liftM show $ getM $ player2Count . stats
-        
-    p1Score <- liftIO $ renderTextSolid f p1c textColor
-    p2Score <- liftIO $ renderTextSolid f p2c textColor
-    
-    blitScreen (halfWidth - 50 - surfaceGetWidth p1Score) 20 p1Score Nothing
-    blitScreen (halfWidth + 50) 20 p2Score Nothing
-    
- where 
-       halfWidth = screenWidth `div` 2
-
-drawPaused :: GameEnv ()
-drawPaused = do
-    pSprite <- askM pausedSprite
-    blitScreen (halfWidth - surfaceGetWidth pSprite `div` 2) (halfHeight - surfaceGetHeight pSprite `div` 2) pSprite Nothing
- 
-render :: GameEnv ()
-render = do
-    screen <- askM screen
-    liftIO $ clear screen 0x00 0x00 0x00
-    
-    drawNet
-    drawPaddle 0
-    drawPaddle 1
-    drawBall
-    
-    drawScore
-    
-    liftIO $ SDL.flip screen 
-
-renderWin :: GameEnv ()
-renderWin = do
-    screen <- askM screen
-    liftIO $ clear screen 0x00 0x00 0x00
-    
-    drawNet
-    drawPaddle 0
-    drawPaddle 1
-    drawScore
-    
-    liftIO $ SDL.flip screen 
-
-renderPaused :: GameEnv ()
-renderPaused = do
-    screen <- askM screen
-    liftIO $ clear screen 0x00 0x00 0x00
-    
-    --drawNet
-    drawPaddle 0
-    drawPaddle 1
-    drawBall
-    drawScore    
-    drawPaused
-    liftIO $ SDL.flip screen 
-    
 --whichSide :: Bounds -> Bounds -> Vector2f
 --Bounds (lx,ly,lw,lh) `whichSide` Bounds (rx,ry,rw,rh) = flip execState (0,0) $ do
 --    when ((lx + lw) <= rx) $ do
 --        modify $ \(_,ny) -> (-1,ny)
---    
+--
 --    when (lx >= (rx + rw)) $ do
 --        modify $ \(_,ny) -> (1,ny)
---    
+--
 --    when ((ly + lh) <= ry) $ do
 --        modify $ \(nx,_) -> (nx,-1)
---    
+--
 --    when (ly >= (ry + rh)) $ do
 --        modify $ \(nx,_) -> (nx,1)
 
@@ -229,7 +123,7 @@ collide dt Paddle { _pPos=(px,py), _yVel=yVel } b@Ball { _pos=(x,y), _vel=v } =
   where bW = fromIntegral ballW
         bH = fromIntegral ballH
         pW = fromIntegral paddleW
-        pH = fromIntegral paddleH  
+        pH = fromIntegral paddleH
 
 data CollisionType =
       CtWall (Either Paddle Ball)
@@ -272,9 +166,9 @@ findCollisions :: Float -> GameEnv [CollisionEvent]
 findCollisions dt = do
     p1 <- getM paddle1
     p2 <- getM paddle2
-    let paddles = filter (not . paddleInside dt) [p1,p2]    
+    let paddles = filter (not . paddleInside dt) [p1,p2]
     let wallPaddles = map (\p -> (CtWall $ Left p,dt)) paddles
-    
+
     result <- findBallCollision dt [p1,p2] `liftM` getM ball
     case result of
         (CtNone,_) -> return wallPaddles
@@ -293,8 +187,7 @@ think (Ball (bx,by) bv) pv p@Paddle { _pPos=(x,y), _yVel=pVel }
 react :: CollisionEvent -> GameEnv ()
 react (CtWall (Left p), _) = do
     p1 <- getM paddle1
-    --p2 <- getM paddle2
-    --liftIO $ putStrLn "wall collided"
+
     let playerL = if p1 == p then paddle1 else paddle2
     modM playerL $ \p@Paddle { _pPos=(x,y) } ->
         p { _pPos=(min w $ max x 0, min h $ max y 0) }
@@ -315,7 +208,7 @@ react (CtWall (Right b@Ball { _pos=(x,y), _vel=(dx,dy) }), dt) = do
         modify $ \k@((u,v),(nx,_)) -> if v > fromIntegral screenHeight then ((u, fromIntegral $ screenHeight - 1),(nx,-1)) else k
 
 react (CtPaddle Paddle { _yVel=paddleVel }, t) = do
-    modM ball $ \b@Ball { _pos=bp, _vel=v } -> 
+    modM ball $ \b@Ball { _pos=bp, _vel=v } ->
         let v' = t `mul` normalize v
             p' = bp `add` v'
             --n        = whichSide (i,j,bW,bH) (px,py + dt * yVel,pW,pH)
@@ -324,7 +217,7 @@ react (CtPaddle Paddle { _yVel=paddleVel }, t) = do
 
 react (CtLeftNet,_) = do
     state =: Win Player1
-    modM (player2Count . stats) (+1) 
+    modM (player2Count . stats) (+1)
     playWinSound
 
 react (CtRightNet, _) = do
@@ -349,28 +242,28 @@ update :: Float -> GameEnv ()
 update dt = do
 
     keyState <- getKeyState
-    
+
     let pVel = if keyState SDLK_w
                 then -paddleVel
                else if (keyState SDLK_s)
                 then paddleVel
                 else 0.0
     setM (yVel . paddle1) pVel
-    
+
     b <- getM ball
     modM paddle2 $ think b (-1,0)
-    
+
     collisions <- findCollisions dt
-    
+
     forM_ collisions react
-    
+
     when (all ballNotHit collisions) $
         modM ball $ updateBall dt
-    
+
     p1 <- getM paddle1
     when (all (paddleNotHit p1) collisions) $
         modM paddle1 $ updatePaddle dt
-    
+
     p2 <- getM paddle2
     when (all (paddleNotHit p2) collisions) $
         modM paddle2 $ updatePaddle dt
@@ -379,38 +272,12 @@ update dt = do
        ballNotHit (CtWall (Left _), _) = True
        ballNotHit (CtNone, _)          = True
        ballNotHit _                    = False
-        
+
        paddleNotHit :: Paddle -> CollisionEvent -> Bool
        paddleNotHit p (CtWall (Left c), _)  = p /= c
        paddleNotHit _ (CtWall (Right _), _) = True
        paddleNotHit _ (CtNone, _)           = True
        paddleNotHit _  _                    = False
-
-playWallSound :: GameEnv ()
-playWallSound = do
-    wb <- askM wallBounce
-    liftIO $ playChannel (-1) wb 0 
-    return ()
-
-playPaddleSound :: GameEnv ()
-playPaddleSound = do
-    pb <- askM paddleBounce
-    liftIO $ playChannel (-1) pb 0
-    return ()
-
-playWinSound :: GameEnv()
-playWinSound = do
-    ws <- askM winSound
-    liftIO $ haltChannel 0
-    liftIO $ playChannel 0 ws 0
-    return ()
-
-isPlayingWin :: GameEnv Bool
-isPlayingWin = do
-    ws <- askM winSound
-    currPlaying <- liftIO $ getChunk 0
-    isplaying <- liftIO $ isChannelPlaying 0
-    return $ ws == currPlaying && isplaying
 
 nextState_ :: GameLoopState -> GameEnv ()
 nextState_ w@(Win player) = do
@@ -444,20 +311,21 @@ loop = do
         case (event, gs) of
             (KeyDown (Keysym SDLK_p _ _), Play)   -> setM state Paused
             (KeyDown (Keysym SDLK_p _ _), Paused) -> setM state Play
-            _ -> return ()                
-    
+            _ -> return ()
+
     nextState
-    
+
     -- TODO: use high res performance timer.
     liftIO $ delay 1
-    
+
     unless quit loop
 
 whileEvents :: MonadIO m => (Event -> m ()) -> m Bool
 whileEvents act = do
     event <- liftIO pollEvent
     case event of
-        Quit -> return True
+        Quit    -> return True
+        KeyDown (Keysym SDLK_ESCAPE _ _) -> return True
         NoEvent -> return False
         _       ->  do
             act event

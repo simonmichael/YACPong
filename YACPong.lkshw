@@ -1,0 +1,10 @@
+Version of workspace file format:
+               1
+Time of storage:
+               "Sat May 29 13:31:29 BST 2010"
+Name of the workspace:
+               "YACPong"
+File paths of contained packages:
+               ["YACPong.cabal"]
+Maybe file path of an active package:
+               Just "YACPong.cabal"
