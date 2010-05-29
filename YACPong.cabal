@@ -8,7 +8,7 @@ copyright: Copyright (c) 2010 Korcan Hussein
 maintainer: korcan_h@hotmail.com
 build-depends: SDL -any, SDL-image -any, SDL-mixer -any,
                SDL-ttf -any, base >=4 && <5, data-accessor-transformers -any,
-               fclabels -any, monads-fd -any, transformers -any
+               fclabels -any, monads-fd -any, random -any, transformers -any
 stability:
 homepage:
 package-url:
@@ -44,7 +44,7 @@ includes:
 install-includes:
 include-dirs:
 hs-source-dirs: .
-other-modules: Consts Draw Collision GameEnv GameState Labels Sound
+other-modules: Collision Consts Draw GameEnv GameState Labels Sound
                Surface Timer Vector2
 ghc-prof-options:
 ghc-shared-options:

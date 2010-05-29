@@ -41,6 +41,7 @@ module Sound (
     isPlayingWin
 ) where
 
+import Control.Monad
 import Control.Monad.Trans
 
 import Labels
@@ -50,35 +51,36 @@ import GameEnv
 import Graphics.UI.SDL.Mixer
 
 -- default number of channels available in SDL-mixer is 8
-data SampleID =
-      WallSound
-    | PaddleSound
-    | WinSound
- deriving (Eq, Enum, Show)
+wallSoundID   = 0
+paddleSoundID = 1
+winSoundID    = 2
 
 playWallSound :: GameEnv ()
 playWallSound = do
     wb <- askM wallBounce
-    liftIO $ playChannel (fromEnum WallSound) wb 0
+--    playing <- liftIO $ isChannelPlaying winSoundID
+--    when (not playing) $ do
+    liftIO $ playChannel wallSoundID wb 0
     return ()
 
 playPaddleSound :: GameEnv ()
 playPaddleSound = do
     pb <- askM paddleBounce
-    c <- liftIO $ playChannel (fromEnum PaddleSound) pb 0
-    liftIO $ playChannel c pb 0
+--    playing <- liftIO $ isChannelPlaying paddleSoundID
+--    when (not playing) $ do
+    liftIO $ playChannel paddleSoundID pb 0
     return ()
 
 playWinSound :: GameEnv()
 playWinSound = do
     ws <- askM winSound
-    liftIO $ haltChannel $ fromEnum WinSound
-    liftIO $ playChannel (fromEnum WinSound) ws 0
+    liftIO $ haltChannel winSoundID
+    liftIO $ playChannel winSoundID ws 0
     return ()
 
 isPlayingWin :: GameEnv Bool
 isPlayingWin = do
     ws <- askM winSound
-    currPlaying <- liftIO $ getChunk $ fromEnum WinSound
-    isplaying <- liftIO $ isChannelPlaying $ fromEnum WinSound
+    currPlaying <- liftIO $ getChunk winSoundID
+    isplaying <- liftIO $ isChannelPlaying winSoundID
     return $ ws == currPlaying && isplaying

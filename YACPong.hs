@@ -175,12 +175,14 @@ findCollisions dt = do
         _          -> return $ result : wallPaddles
 
 think :: Ball -> Vector2f -> Paddle  -> Paddle
-think (Ball (bx,by) bv) pv p@Paddle { _pPos=(x,y), _yVel=pVel }
-    | ang < 0   = p { _yVel= if by < y
-                               then -paddleVel
-                             else if by > y + fromIntegral paddleH
-                               then paddleVel
-                               else 0 }
+think (Ball (bx,by) bv) pv p@Paddle { _pPos=(x,y), _yVel=pVel, _lastPos=oldY }
+    | ang < 0   =
+        let newVel = if by < y then -paddleVel
+                     else if by > y + fromIntegral paddleH
+                        then paddleVel
+                        else 0
+            p' = saveLastPos newVel p -- capture the first y-pos of the paddle.
+        in p' { _yVel=newVel  }
     | otherwise = set yVel 0 p
  where ang = bv `dot` pv
 
@@ -207,13 +209,18 @@ react (CtWall (Right b@Ball { _pos=(x,y), _vel=(dx,dy) }), dt) = do
         modify $ \k@((u,v),(nx,_)) -> if v < 0 then ((u, 0),(nx,1)) else k
         modify $ \k@((u,v),(nx,_)) -> if v > fromIntegral screenHeight then ((u, fromIntegral $ screenHeight - 1),(nx,-1)) else k
 
-react (CtPaddle Paddle { _yVel=paddleVel }, t) = do
+react (CtPaddle p, t) = do
     modM ball $ \b@Ball { _pos=bp, _vel=v } ->
         let v' = t `mul` normalize v
             p' = bp `add` v'
             --n        = whichSide (i,j,bW,bH) (px,py + dt * yVel,pW,pH)
-        in b { _pos=p', _vel=(0, paddleVel) `add` reflect v (1,0) }
+        --in b { _pos=p', _vel=(0, paddleVel) `add` reflect v (1,0) }
+        in b { _pos=p', _vel=paddleInflunceVec `add` reflect v (1,0) }
     playPaddleSound
+ where currY     = snd $ get pPos p
+       paddleVel = get yVel p
+       lastY     = get lastPos p
+       paddleInflunceVec = if lastY == 0 then (0,0) else (0, currY - lastY)
 
 react (CtLeftNet,_) = do
     state =: Win Player1
@@ -238,6 +245,13 @@ updateBall dt b@Ball { _pos=bp@(x,y), _vel=v@(dx,dy) } = b { _pos=(x',y') }
  where x' = dx * dt + x
        y' = dy * dt + y
 
+saveLastPos :: Float -> Paddle -> Paddle
+saveLastPos nextVel p
+    | currVel == 0 && nextVel /= 0 = p { _lastPos = snd $ get pPos p }
+    | currVel /= 0 && nextVel == 0 = p { _lastPos = 0 }
+    | otherwise                    = p
+ where currVel = get yVel p
+
 update :: Float -> GameEnv ()
 update dt = do
 
@@ -248,6 +262,10 @@ update dt = do
                else if (keyState SDLK_s)
                 then paddleVel
                 else 0.0
+
+    -- capture the first y-pos of the player's paddle.
+    modM paddle1 $ saveLastPos pVel
+
     setM (yVel . paddle1) pVel
 
     b <- getM ball
@@ -284,11 +302,14 @@ nextState_ w@(Win player) = do
     renderWin
     isWinPlay <- isPlayingWin
     stopTicks
-    let result = if isWinPlay then w else Init
+    let result = if isWinPlay then w else Init player
     state =: result
 
-nextState_ Init = do
-    setM ball $ newBall (fromIntegral halfWidth, fromIntegral halfHeight)
+nextState_ (Init player) = do
+    rgen <- getM randGen
+    let (b,r) = newBall player (fromIntegral halfWidth, fromIntegral halfHeight) rgen
+    setM ball b
+    setM randGen r
     state =: Play
 
 nextState_ Play = do

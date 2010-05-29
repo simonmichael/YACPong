@@ -31,12 +31,10 @@ ballW   = 8
 ballH   = 8
 
 paddleVel :: Float
-paddleVel = 300
+paddleVel = 400
 
 secs :: Float
 secs = 1.0 / 1000.0
 
 textColor :: Color
 textColor = Color 0xFF 0xFF 0xFF
-
-

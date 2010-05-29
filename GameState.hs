@@ -1,18 +1,18 @@
 {-
     The MIT License
-    
+
     Copyright (c) 2010 Korcan Hussein.
-    
+
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
     in the Software without restriction, including without limitation the rights
     to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
     copies of the Software, and to permit persons to whom the Software is
     furnished to do so, subject to the following conditions:
-    
+
     The above copyright notice and this permission notice shall be included in
     all copies or substantial portions of the Software.
-    
+
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -25,6 +25,9 @@
 module GameState where
 
 import Prelude hiding (id, (.), mod)
+
+import System.Random
+
 import Control.Category
 import Control.Monad.Reader
 import Control.Monad.State hiding (get)
@@ -47,7 +50,7 @@ data Player = Player1 | Player2
 
 data GameLoopState =
       Win Player
-    | Init
+    | Init Player
     | Play
     | Paused
 
@@ -57,13 +60,14 @@ data Ball = Ball {
 } deriving (Eq, Show)
 
 data Paddle = Paddle {
-    _pPos :: Vector2f,
-    _yVel :: Float
+    _pPos    :: Vector2f,
+    _yVel    :: Float,
+    _lastPos :: Float
 } deriving (Eq, Show)
 
 data Stats = Stats {
     _player1Count :: Integer,
-    _player2Count :: Integer 
+    _player2Count :: Integer
 } deriving (Eq, Show)
 
 data GameData = GameData {
@@ -71,9 +75,9 @@ data GameData = GameData {
     _paddle2   :: Paddle,
     _ball      :: Ball,
     _stats     :: Stats,
-    --_currTick  :: Word32,
     _ticker    :: Timer,
-    _state     :: GameLoopState
+    _state     :: GameLoopState,
+    _randGen   :: StdGen
 }
 
 data GameConfig = GameConfig {
@@ -101,13 +105,26 @@ startTicks = modM_ ticker start
 resetTicks :: (MonadIO m, MonadState GameData m) => m ()
 resetTicks = start timer >>= setM ticker
 
+degToRad :: Float
+degToRad = pi / 180
 -- (-141.4,-141.4)
 -- (200.0,0)
-newBall :: Vector2f -> Ball
-newBall pos = Ball pos (-141.4,-141.4)
+ballVel :: Float
+ballVel = 400
+
+newBall :: RandomGen g => Player -> Vector2f -> g -> (Ball,g)
+newBall p pos g = (Ball pos vel, g')--(-141.4,-141.4)
+ where (deg,g') = randomR (135,225) g
+       angle = deg * degToRad
+       vel = (xdir * ballVel * cos angle, ballVel * sin angle)
+       xdir = case p of
+                Player1 -> 1
+                Player2 -> (-1)
 
 gameData :: Vector2f -> Vector2f -> Vector2f -> Timer -> GameData
-gameData p1 p2 b ticks = GameData (Paddle p1 0) (Paddle p2 0) (Ball b (200.0,0)) (Stats 0 0) ticks Init
+gameData p1 p2 b ticks = GameData (Paddle p1 0 p1LastPos) (Paddle p2 0 p2LastPos) (Ball b (200.0,0)) (Stats 0 0) ticks (Init Player1) $ mkStdGen 0
+ where p1LastPos = snd p1
+       p2LastPos = snd p2
 
 mapPlayer :: Player -> Stats :-> Integer
 mapPlayer Player1 = player1Count
