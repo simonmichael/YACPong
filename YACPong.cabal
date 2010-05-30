@@ -1,9 +1,9 @@
 name: YACPong
 version: 0.1
-cabal-version: >=1.2
+cabal-version: >=1.4
 build-type: Simple
 license: MIT
-license-file: /mnt/vm_shared/YACPong/LICENSE
+license-file: LICENSE
 copyright: Copyright (c) 2010 Korcan Hussein
 maintainer: korcan_h@hotmail.com
 build-depends: SDL -any, SDL-image -any, SDL-mixer -any,
@@ -14,17 +14,15 @@ homepage:
 package-url:
 bug-reports:
 synopsis: Yet Another Pong Clone using SDL.
-description: .
+description: Yet Another Pong Clone using SDL.
 category: Game
 author: Korcan Hussein
-tested-with:
-data-files:
-data-dir: /mnt/vm_shared/YACPong/data
-extra-source-files: /mnt/vm_shared/YACPong/Collision.hs
-                    /mnt/vm_shared/YACPong/GameEnv.hs
-                    /mnt/vm_shared/YACPong/GameState.hs
-                    /mnt/vm_shared/YACPong/Labels.hs /mnt/vm_shared/YACPong/Surface.hs
-                    /mnt/vm_shared/YACPong/Vector2.hs
+tested-with: GHC -any
+data-files: Crysta.ttf paddle.wav wall.wav win.wav
+data-dir: data
+extra-source-files: Collision.hs Consts.hs Draw.hs GameEnv.hs
+                    GameState.hs Labels.hs README Sound.hs Surface.hs Timer.hs
+                    Vector2.hs YACPong.hs
 extra-tmp-files:
  
 executable: YACPong

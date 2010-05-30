@@ -15,16 +15,19 @@ module Consts where
 
 import Graphics.UI.SDL.Color
 
-screenWidth, screenHeight, screenBpp:: Int
-screenWidth  = 640
-screenHeight = 480
+screenBpp :: Int
 screenBpp    = 32
 
-halfHeight, halfWidth :: Int
-halfHeight = screenHeight `div` 2
-halfWidth  = screenWidth `div` 2
+screenWidth, screenHeight :: Float
+screenWidth  = 640
+screenHeight = 480
 
-paddleW, paddleH, ballW, ballH :: Int
+
+halfHeight, halfWidth :: Float
+halfHeight = screenHeight / 2
+halfWidth  = screenWidth / 2
+
+paddleW, paddleH, ballW, ballH :: Float
 paddleW = 22
 paddleH = 96
 ballW   = 8
@@ -38,3 +41,9 @@ secs = 1.0 / 1000.0
 
 textColor :: Color
 textColor = Color 0xFF 0xFF 0xFF
+
+degToRad :: Float
+degToRad = pi / 180
+
+ballVel :: Float
+ballVel = 350

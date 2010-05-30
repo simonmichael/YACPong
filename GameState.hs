@@ -31,6 +31,7 @@ import System.Random
 import Control.Category
 import Control.Monad.Reader
 import Control.Monad.State hiding (get)
+--import qualified Control.Monad.State as MState (get,put)
 
 import Data.Word
 import Data.Record.Label
@@ -43,6 +44,7 @@ import Labels
 import Vector2
 import Collision
 import Timer
+import Consts
 
 --type Vector2f = (Float, Float)
 data Player = Player1 | Player2
@@ -105,13 +107,6 @@ startTicks = modM_ ticker start
 resetTicks :: (MonadIO m, MonadState GameData m) => m ()
 resetTicks = start timer >>= setM ticker
 
-degToRad :: Float
-degToRad = pi / 180
--- (-141.4,-141.4)
--- (200.0,0)
-ballVel :: Float
-ballVel = 400
-
 newBall :: RandomGen g => Player -> Vector2f -> g -> (Ball,g)
 newBall p pos g = (Ball pos vel, g')--(-141.4,-141.4)
  where (deg,g') = randomR (135,225) g
@@ -120,6 +115,13 @@ newBall p pos g = (Ball pos vel, g')--(-141.4,-141.4)
        xdir = case p of
                 Player1 -> 1
                 Player2 -> (-1)
+
+newBallM :: (MonadState GameData m) => Player -> Vector2f -> m Ball
+newBallM p pos = do
+    rgen <- getM randGen
+    let (b, rgen') = newBall p pos rgen
+    randGen =: rgen'
+    return b
 
 gameData :: Vector2f -> Vector2f -> Vector2f -> Timer -> GameData
 gameData p1 p2 b ticks = GameData (Paddle p1 0 p1LastPos) (Paddle p2 0 p2LastPos) (Ball b (200.0,0)) (Stats 0 0) ticks (Init Player1) $ mkStdGen 0

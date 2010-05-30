@@ -63,6 +63,7 @@ import GameEnv
 import Consts
 import Sound
 import Draw
+import Paths_YACPong
 
 -- SDL_GetKeyState is not defined in Graphic.UI.SDL
 foreign import ccall unsafe "SDL_GetKeyState" sdlGetKeyState :: Ptr CInt -> IO (Ptr Word8)
@@ -76,32 +77,42 @@ getKeyState = liftIO $ alloca $ \numkeysPtr -> do
 
 init :: IO (GameConfig, GameData)
 init = do
-    screen  <- setVideoMode screenWidth screenHeight screenBpp [HWSurface, DoubleBuf]
+    screen  <- setVideoMode (truncate screenWidth) (truncate screenHeight) screenBpp [HWSurface, DoubleBuf]
     setCaption "YACPong" []
     enableUnicode True
-    font         <- openFont "data/Crysta.ttf" 36
-    wallBounce   <- loadWAV "data/wall.wav"
-    paddleBounce <- loadWAV "data/paddle.wav"
-    winSound     <- loadWAV "data/win.wav"
 
-    paddleSprite <- createRGBSurfaceEndian [HWSurface] paddleW paddleH screenBpp
-    ballSprite   <- createRGBSurfaceEndian [HWSurface] ballW ballH screenBpp
+    fontFileName   <- getDataFileName "Crysta.ttf"
+    wallFileName   <- getDataFileName "wall.wav"
+    paddleFileName <- getDataFileName "paddle.wav"
+    winFileName    <- getDataFileName "win.wav"
+
+    font         <- openFont fontFileName 36
+    wallBounce   <- loadWAV wallFileName
+    paddleBounce <- loadWAV paddleFileName
+    winSound     <- loadWAV winFileName
+
+    paddleSprite <- createRGBSurfaceEndian [HWSurface] paddleW' paddleH' screenBpp
+    ballSprite   <- createRGBSurfaceEndian [HWSurface] ballW' ballH' screenBpp
 
     paddleColor <- mapRGB' paddleSprite 0xFF 0xFF 0x00
     ballColor   <- mapRGB' ballSprite 0x3F 0xFF 0xF5
 
-    fillRect paddleSprite (Just $ Rect 0 0 paddleW paddleH) paddleColor
-    fillRect ballSprite (Just $ Rect 0 0 ballW ballH) ballColor
+    fillRect paddleSprite (Just $ Rect 0 0 paddleW' paddleH') paddleColor
+    fillRect ballSprite (Just $ Rect 0 0 ballW' ballH') ballColor
 
     paused <- renderTextSolid font "PAUSED" textColor
 
     currTicks <- start timer
 
     return (GameConfig font screen ballSprite paddleSprite paused wallBounce paddleBounce winSound, gameData pPos1 pPos2 bPos currTicks)
- where from (x,y) = (fromIntegral x, fromIntegral y)
-       pPos1   = from (10, halfHeight - paddleH `div` 2)
-       pPos2   = from (screenWidth - 10 - paddleW, halfHeight - paddleH `div` 2)
-       bPos    = from (halfWidth, halfHeight)
+ where paddleW' = truncate paddleW
+       paddleH' = truncate paddleH
+       ballW'   = truncate ballW
+       ballH'   = truncate ballH
+       --from (x,y) = (fromIntegral x, fromIntegral y)
+       pPos1   = (10, halfHeight - paddleH / 2)
+       pPos2   = (screenWidth - 10 - paddleW, halfHeight - paddleH / 2)
+       bPos    = (halfWidth, halfHeight)
 
 --whichSide :: Bounds -> Bounds -> Vector2f
 --Bounds (lx,ly,lw,lh) `whichSide` Bounds (rx,ry,rw,rh) = flip execState (0,0) $ do
@@ -120,10 +131,10 @@ init = do
 collide :: Float -> Paddle -> Ball -> Maybe (Float,Float)
 collide dt Paddle { _pPos=(px,py), _yVel=yVel } b@Ball { _pos=(x,y), _vel=v } =
     intersectMoving (Bounds (px,py,pW,pH)) (Bounds (x,y,bW,bH)) (0, dt * yVel) (dt `mul` v)
-  where bW = fromIntegral ballW
-        bH = fromIntegral ballH
-        pW = fromIntegral paddleW
-        pH = fromIntegral paddleH
+  where bW = ballW
+        bH = ballH
+        pW = paddleW
+        pH = paddleH
 
 data CollisionType =
       CtWall (Either Paddle Ball)
@@ -135,16 +146,14 @@ data CollisionType =
 type CollisionEvent = (CollisionType, Float)
 
 paddleInside :: Float -> Paddle -> Bool
-paddleInside dt paddle =  not $ y' < 0 || y' + paddleH' > screenHeight'
+paddleInside dt paddle =  not $ y' < 0 || y' + paddleH > screenHeight
  where (_,y) = get pPos paddle
        vel   = get yVel paddle
        y'    = vel * dt + y
-       paddleH'      = fromIntegral paddleH
-       screenHeight' = fromIntegral screenHeight
 
 findBallCollision :: Float -> [Paddle] -> Ball -> CollisionEvent
 findBallCollision dt paddles b@Ball { _pos=bp@(x,y), _vel=v@(dx,dy) }
-    | x' > 0 && x' < screenWidth' && y' > 0 && y' < screenHeight' = --b { _pos=(x',y') }
+    | x' > 0 && x' < screenWidth && y' > 0 && y' < screenHeight = --b { _pos=(x',y') }
         let intersecting (_, Nothing) = False
             intersecting (_, Just (0,_)) = False
             intersecting _ =  True
@@ -152,14 +161,12 @@ findBallCollision dt paddles b@Ball { _pos=bp@(x,y), _vel=v@(dx,dy) }
         in case collided of
             Just (p, Just (t1,_)) -> (CtPaddle p, t1)
             _                     -> (CtNone, 0)
-    | x' < 0             = (CtLeftNet, dt)
-    | x' > screenWidth'  = (CtRightNet, dt)
-    | y' < 0             = (CtWall $ Right b, dt)
-    | y' > screenHeight' = (CtWall $ Right b, dt)
+    | x' < 0            = (CtLeftNet, dt)
+    | x' > screenWidth  = (CtRightNet, dt)
+    | y' < 0            = (CtWall $ Right b, dt)
+    | y' > screenHeight = (CtWall $ Right b, dt)
     | otherwise = (CtNone, 0)
- where screenWidth' = fromIntegral screenWidth
-       screenHeight' = fromIntegral screenHeight
-       x' = dx * dt + x
+ where x' = dx * dt + x
        y' = dy * dt + y
 
 findCollisions :: Float -> GameEnv [CollisionEvent]
@@ -178,7 +185,7 @@ think :: Ball -> Vector2f -> Paddle  -> Paddle
 think (Ball (bx,by) bv) pv p@Paddle { _pPos=(x,y), _yVel=pVel, _lastPos=oldY }
     | ang < 0   =
         let newVel = if by < y then -paddleVel
-                     else if by > y + fromIntegral paddleH
+                     else if by > y + paddleH
                         then paddleVel
                         else 0
             p' = saveLastPos newVel p -- capture the first y-pos of the paddle.
@@ -193,8 +200,8 @@ react (CtWall (Left p), _) = do
     let playerL = if p1 == p then paddle1 else paddle2
     modM playerL $ \p@Paddle { _pPos=(x,y) } ->
         p { _pPos=(min w $ max x 0, min h $ max y 0) }
- where w = fromIntegral screenWidth
-       h = fromIntegral screenHeight
+ where w = screenWidth
+       h = screenHeight
 
 react (CtWall (Right b@Ball { _pos=(x,y), _vel=(dx,dy) }), dt) = do
     setM ball b { _pos=pos', _vel=reflect (dx,dy) wallNormal }
@@ -207,7 +214,7 @@ react (CtWall (Right b@Ball { _pos=(x,y), _vel=(dx,dy) }), dt) = do
         --modify $ \k@((u,v),(_,ny)) -> if u < 0 then ((0,v),(1,ny)) else k
         --modify $ \k@((u,v),(_,ny)) -> if u > fromIntegral screenWidth then ((fromIntegral $ screenWidth - 1, v),(-1,ny)) else k
         modify $ \k@((u,v),(nx,_)) -> if v < 0 then ((u, 0),(nx,1)) else k
-        modify $ \k@((u,v),(nx,_)) -> if v > fromIntegral screenHeight then ((u, fromIntegral $ screenHeight - 1),(nx,-1)) else k
+        modify $ \k@((u,v),(nx,_)) -> if v > screenHeight then ((u, screenHeight - 1),(nx,-1)) else k
 
 react (CtPaddle p, t) = do
     modM ball $ \b@Ball { _pos=bp, _vel=v } ->
@@ -306,10 +313,7 @@ nextState_ w@(Win player) = do
     state =: result
 
 nextState_ (Init player) = do
-    rgen <- getM randGen
-    let (b,r) = newBall player (fromIntegral halfWidth, fromIntegral halfHeight) rgen
-    setM ball b
-    setM randGen r
+    setM ball =<< newBallM player (halfWidth, halfHeight)
     state =: Play
 
 nextState_ Play = do

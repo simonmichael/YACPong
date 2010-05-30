@@ -108,8 +108,10 @@ blitScreen x y s r = do
 drawNet :: GameEnv ()
 drawNet = do
     dst <- askM screen
-    liftIO $ drawLine dst (x,0) (screenHeight-1) 2 Vertical $ Pixel 0xFFFFFFFF
- where x = screenWidth `div` 2
+    liftIO $ drawLine dst (x,0) (screenHeight'-1) 2 Vertical $ Pixel 0xFFFFFFFF
+ where screenHeight' = truncate screenHeight
+       screenWidth'  = truncate screenWidth
+       x = screenWidth' `div` 2
 
 
 drawPaddle :: Int -> GameEnv ()
@@ -134,13 +136,15 @@ drawScore = do
     p1Score <- liftIO $ renderTextSolid f p1c textColor
     p2Score <- liftIO $ renderTextSolid f p2c textColor
 
-    blitScreen (halfWidth - 50 - surfaceGetWidth p1Score) 20 p1Score Nothing
-    blitScreen (halfWidth + 50) 20 p2Score Nothing
-
+    blitScreen (halfWidth' - 50 - surfaceGetWidth p1Score) 20 p1Score Nothing
+    blitScreen (halfWidth' + 50) 20 p2Score Nothing
  where
-       halfWidth = screenWidth `div` 2
+       halfWidth' = truncate halfWidth
 
 drawPaused :: GameEnv ()
 drawPaused = do
     pSprite <- askM pausedSprite
-    blitScreen (halfWidth - surfaceGetWidth pSprite `div` 2) (halfHeight - surfaceGetHeight pSprite `div` 2) pSprite Nothing
+    blitScreen (halfWidth' - surfaceGetWidth pSprite `div` 2) (halfHeight' - surfaceGetHeight pSprite `div` 2) pSprite Nothing
+ where
+       halfWidth'  = truncate halfWidth
+       halfHeight' = truncate halfHeight
