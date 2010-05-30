@@ -10,7 +10,7 @@ build-depends: SDL -any, SDL-image -any, SDL-mixer -any,
                SDL-ttf -any, base >=4 && <5, data-accessor-transformers -any,
                fclabels -any, monads-fd -any, random -any, transformers -any
 stability:
-homepage:
+homepage: http://github.com/snkkid/YACPong
 package-url:
 bug-reports:
 synopsis: Yet Another Pong Clone using SDL.
