@@ -9,7 +9,7 @@ $(PROGNAME)p: mainc.o MainWrapper.hs $(SRCNAME)
 mainc.o: mainc.c MainWrapper_stub.h
 	ghc -no-hs-main `sdl-config --cflags` -Wall $*.c -c
 MainWrapper_stub.h: MainWrapper.hs
-	ghc -no-hs-main --make $< -c
+	ghc -DMAKE -no-hs-main --make $< -c
 clean:
 	rm -f *.hi *.o *_stub.c *_stub.h $(PROGNAME)
 .PHONY: clean
