@@ -21,8 +21,8 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
 -}
-{-# LANGUAGE FlexibleContexts, ForeignFunctionInterface #-}
-module Main where
+{-# LANGUAGE FlexibleContexts, ForeignFunctionInterface, CPP #-}
+module YACPong where
 
 import Prelude hiding (id, (.), mod, init)
 
@@ -63,7 +63,12 @@ import GameEnv
 import Consts
 import Sound
 import Draw
+#ifdef MAKE
+import Paths_YACPong_make
+#else
 import Paths_YACPong
+#endif
+
 
 -- SDL_GetKeyState is not defined in Graphic.UI.SDL
 foreign import ccall unsafe "SDL_GetKeyState" sdlGetKeyState :: Ptr CInt -> IO (Ptr Word8)
@@ -147,8 +152,8 @@ type CollisionEvent = (CollisionType, Float)
 
 paddleInside :: Float -> Paddle -> Bool
 paddleInside dt paddle =  not $ y' < 0 || y' + paddleH > screenHeight
- where (_,y) = get pPos paddle
-       vel   = get yVel paddle
+ where (_,y) = getL pPos paddle
+       vel   = getL yVel paddle
        y'    = vel * dt + y
 
 findBallCollision :: Float -> [Paddle] -> Ball -> CollisionEvent
@@ -190,7 +195,7 @@ think (Ball (bx,by) bv) pv p@Paddle { _pPos=(x,y), _yVel=pVel, _lastPos=oldY }
                         else 0
             p' = saveLastPos newVel p -- capture the first y-pos of the paddle.
         in p' { _yVel=newVel  }
-    | otherwise = set yVel 0 p
+    | otherwise = setL yVel 0 p
  where ang = bv `dot` pv
 
 react :: CollisionEvent -> GameEnv ()
@@ -224,9 +229,9 @@ react (CtPaddle p, t) = do
         --in b { _pos=p', _vel=(0, paddleVel) `add` reflect v (1,0) }
         in b { _pos=p', _vel=paddleInflunceVec `add` reflect v (1,0) }
     playPaddleSound
- where currY     = snd $ get pPos p
-       paddleVel = get yVel p
-       lastY     = get lastPos p
+ where currY     = snd $ getL pPos p
+       paddleVel = getL yVel p
+       lastY     = getL lastPos p
        paddleInflunceVec = if lastY == 0 then (0,0) else (0, currY - lastY)
 
 react (CtLeftNet,_) = do
@@ -242,9 +247,9 @@ react (CtRightNet, _) = do
 react (CtNone, _) = return ()
 
 updatePaddle :: Float -> Paddle -> Paddle
-updatePaddle dt paddle = set pPos (x,y') paddle
- where (x,y) = get pPos paddle
-       vel   = get yVel paddle
+updatePaddle dt paddle = setL pPos (x,y') paddle
+ where (x,y) = getL pPos paddle
+       vel   = getL yVel paddle
        y'    = vel * dt + y
 
 updateBall :: Float -> Ball -> Ball
@@ -254,10 +259,10 @@ updateBall dt b@Ball { _pos=bp@(x,y), _vel=v@(dx,dy) } = b { _pos=(x',y') }
 
 saveLastPos :: Float -> Paddle -> Paddle
 saveLastPos nextVel p
-    | currVel == 0 && nextVel /= 0 = p { _lastPos = snd $ get pPos p }
+    | currVel == 0 && nextVel /= 0 = p { _lastPos = snd $ getL pPos p }
     | currVel /= 0 && nextVel == 0 = p { _lastPos = 0 }
     | otherwise                    = p
- where currVel = get yVel p
+ where currVel = getL yVel p
 
 update :: Float -> GameEnv ()
 update dt = do

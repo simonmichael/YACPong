@@ -44,6 +44,7 @@ module Sound (
 import Control.Monad
 import Control.Monad.Trans
 
+import Data.Record.Label (askM)
 import Labels
 import GameState
 import GameEnv

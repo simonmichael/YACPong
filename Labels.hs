@@ -27,13 +27,13 @@ module Labels where
 import Prelude hiding (id, (.), mod)
 import Control.Category
 import Control.Monad.Reader
-import Control.Monad.State hiding (get)
+import Control.Monad.State
 
 import Data.Record.Label
 
-askM :: MonadReader r m => (r :-> b) -> m b
-askM = asks . get
-{-# INLINE askM #-}
+-- askM :: MonadReader r m => (r :-> b) -> m b
+-- askM = asks . getL
+-- {-# INLINE askM #-}
 
 modM_ :: MonadState s m => (s :-> b) -> (b -> m b) -> m ()
 modM_ label act = getM label >>= act >>= setM label
